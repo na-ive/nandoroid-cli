@@ -4,10 +4,24 @@
 
 SHELL_DIR="$HOME/.config/quickshell/nandoroid"
 
+# Find which binary to use
+get_qs_bin() {
+    if command -v qs &> /dev/null; then
+        echo "qs"
+    else
+        echo "quickshell"
+    fi
+}
+
+is_shell_running() {
+    pgrep -x "quickshell" > /dev/null || pgrep -x "qs" > /dev/null
+}
+
 stop_existing_shell() {
-    if pgrep -x "quickshell" > /dev/null; then
+    if is_shell_running; then
         substep "Stopping existing Quickshell instance..."
         pkill -x "quickshell" || true
+        pkill -x "qs" || true
         sleep 0.5
     fi
 }
@@ -20,16 +34,18 @@ cmd_run() {
     
     stop_existing_shell
     
+    local bin=$(get_qs_bin)
     # Run in background
-    quickshell -p "$SHELL_DIR" > /dev/null 2>&1 &
+    $bin -p "$SHELL_DIR" > /dev/null 2>&1 &
     disown
-    success "Shell started in background."
+    success "Shell started in background using $bin."
 }
 
 cmd_reload() {
     info "Reloading Nandoroid Shell..."
-    if pgrep -x "quickshell" > /dev/null; then
-        quickshell --reload
+    if is_shell_running; then
+        local bin=$(get_qs_bin)
+        $bin --reload
         success "Reload signal sent."
     else
         error "No running Quickshell instance found to reload."
@@ -44,15 +60,16 @@ cmd_debug() {
     
     stop_existing_shell
     
-    substep "Logs will appear below. Press Ctrl+C to stop."
-    # Run in foreground WITHOUT disown/backgrounding
-    quickshell -d -p "$SHELL_DIR"
+    local bin=$(get_qs_bin)
+    substep "Logs will appear below using $bin. Press Ctrl+C to stop."
+    $bin -d -p "$SHELL_DIR"
 }
 
 cmd_exit() {
     info "Exiting Nandoroid Shell..."
-    if pgrep -x "quickshell" > /dev/null; then
-        pkill -x "quickshell"
+    if is_shell_running; then
+        pkill -x "quickshell" || true
+        pkill -x "qs" || true
         success "Quickshell stopped."
     else
         info "Quickshell is not currently running."
