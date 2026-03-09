@@ -1,0 +1,205 @@
+#!/bin/bash
+
+# Nandoroid CLI - The main control script for the Nandoroid Shell environment.
+# Part of the Nandoroid Ecosystem.
+
+# Configuration
+VERSION="1.0.0"
+LIB_DIR="$(dirname "$(realpath "$0")")/../lib"
+
+# --- UI Colors ---
+C_MAIN='\033[38;2;202;169;224m'
+C_ACCENT='\033[38;2;145;177;240m'
+C_DIM='\033[38;2;129;122;150m'
+C_GREEN='\033[38;2;166;209;137m'
+C_YELLOW='\033[38;2;229;200;144m'
+C_RED='\033[38;2;231;130;132m'
+C_WHITE='\033[38;2;205;214;244m'
+C_BOLD='\033[1m'
+C_RST='\033[0m'
+
+# Utility for colored output
+error() { echo -e "${C_MAIN}${C_BOLD} ╰─ ${C_RED}x ${C_RST}$1"; exit 1; }
+info() { echo -e "${C_MAIN}${C_BOLD} ╭─ $1${C_RST}"; }
+success() { echo -e "${C_MAIN}${C_BOLD} ╰─ ${C_GREEN}+ ${C_RST}$1\n"; }
+substep() { echo -e "${C_MAIN}${C_BOLD} │  ${C_DIM}> ${C_RST}$1"; }
+
+# Source modular components
+source_lib() {
+    local component="$1"
+    if [[ -f "$LIB_DIR/$component.sh" ]]; then
+        source "$LIB_DIR/$component.sh"
+    else
+        error "Component '$component' not found in $LIB_DIR"
+    fi
+}
+
+# Protection: Check if nandoroid-shell is installed
+SHELL_CONFIG_DIR="$HOME/.config/quickshell/nandoroid"
+is_shell_installed() {
+    [[ -d "$SHELL_CONFIG_DIR" ]]
+}
+
+# Show help
+show_help() {
+    echo -e "${C_MAIN}${C_BOLD}NAnDoroid CLI v$VERSION${C_RST}"
+    echo "Usage: nandoroid <command> [args]"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}Lifecycle:${C_RST}"
+    echo "  run           Start the Nandoroid Shell"
+    echo "  reload        Reload the currently running shell"
+    echo "  debug         Run the shell in debug mode"
+    echo "  logs          Show Quickshell logs"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}Panel Control:${C_RST}"
+    echo "  spotlight     Toggle the Spotlight search panel"
+    echo "  spotlight {files|apps|commands|clipboard|emoji} Open specific mode"
+    echo "  dashboard     Toggle the Dashboard"
+    echo "  settings      Open the Nandoroid Settings panel"
+    echo "  launcher      Toggle the App Launcher"
+    echo "  notifications Toggle the Notification Center"
+    echo "  quicksettings Toggle the Quick Settings"
+    echo "  systemmonitor Toggle the System Monitor"
+    echo "  overview      Toggle the Overview panel"
+    echo "  session       Toggle the Session menu"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}Region Tools:${C_RST}"
+    echo "  region {screenshot|search|ocr|record|record-audio}"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}System Actions:${C_RST}"
+    echo "  reboot        Reboot the system"
+    echo "  lock          Lock the screen using Nandoroid Shell"
+    echo "  poweroff      Shut down the system"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}Styling:${C_RST}"
+    echo "  wallpaper     Open the wallpaper selection panel"
+    echo "  wallpaper cycle {on|off} Toggle auto-cycle wallpaper"
+    echo "  colorscheme   Regenerate the colorscheme based on current wallpaper"
+    echo "  theme {dark|light|toggle} Manage dark/light mode"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}Maintenance & Utils:${C_RST}"
+    echo "  status        Show current shell status"
+    echo "  config edit   Open configuration in \$EDITOR"
+    echo "  doctor        Check system health and dependencies"
+    echo "  install       Set up/Install Nandoroid Shell"
+    echo "  install deps  Install shell dependencies only"
+    echo "  update {shell|cli} [stable|canary]"
+    echo ""
+    echo -e "${C_ACCENT}${C_BOLD}General:${C_RST}"
+    echo "  version       Show the version of nandoroid-cli"
+    echo "  help          Show this help message"
+}
+
+# Main command dispatcher
+COMMAND="$1"
+shift
+
+# Handle cases where shell is not installed
+if ! is_shell_installed; then
+    case "$COMMAND" in
+        install|version|help|doctor|status)
+            # Allow these
+            ;;
+        update)
+            # Allow 'update cli' even if shell is not installed
+            if [[ "$1" == "cli" ]]; then
+                source_lib "maintenance"
+                cmd_update "$@"
+                exit 0
+            fi
+            error "Nandoroid Shell not found. Run 'nandoroid install' first."
+            ;;
+        "")
+            show_help
+            exit 0
+            ;;
+        *)
+            error "Nandoroid Shell not found. Run 'nandoroid install' first."
+            ;;
+    esac
+fi
+
+case "$COMMAND" in
+    run|reload|debug)
+        source_lib "lifecycle"
+        case "$COMMAND" in
+            run)    cmd_run "$@" ;;
+            reload) cmd_reload "$@" ;;
+            debug)  cmd_debug "$@" ;;
+        esac
+        ;;
+    logs)
+        source_lib "logs"
+        cmd_logs "$@"
+        ;;
+    spotlight)
+        source_lib "panels"
+        cmd_spotlight "$@"
+        ;;
+    dashboard|settings|launcher|notifications|quicksettings|systemmonitor|overview|session)
+        source_lib "panels"
+        cmd_toggle_panel "$COMMAND" "$@"
+        ;;
+    region)
+        source_lib "panels"
+        cmd_region "$@"
+        ;;
+    reboot|lock|poweroff)
+        source_lib "system"
+        case "$COMMAND" in
+            reboot)   cmd_reboot "$@" ;;
+            lock)     cmd_lock "$@" ;;
+            poweroff) cmd_poweroff "$@" ;;
+        esac
+        ;;
+    install)
+        source_lib "maintenance"
+        if [[ "$1" == "deps" ]]; then
+            cmd_install_shell_deps
+        else
+            cmd_install_shell
+        fi
+        ;;
+    update)
+        source_lib "maintenance"
+        cmd_update "$@"
+        ;;
+    wallpaper)
+        source_lib "styling"
+        case "$1" in
+            cycle)
+                shift
+                cmd_wallpaper_cycle "$@"
+                ;;
+            *)
+                cmd_wallpaper "$@"
+                ;;
+        esac
+        ;;
+    theme)
+        source_lib "styling"
+        cmd_theme "$@"
+        ;;
+    colorscheme)
+        source_lib "styling"
+        cmd_colorscheme "$@"
+        ;;
+    status)
+        source_lib "status"
+        cmd_status "$@"
+        ;;
+    config)
+        source_lib "config"
+        cmd_config "$@"
+        ;;
+    doctor)
+        source_lib "doctor"
+        cmd_doctor "$@"
+        ;;
+    version)
+        echo "nandoroid-cli version $VERSION"
+        ;;
+    help|*)
+        show_help
+        ;;
+esac

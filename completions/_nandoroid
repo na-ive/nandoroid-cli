@@ -1,0 +1,80 @@
+#compdef nandoroid
+
+_nandoroid() {
+    local -a commands
+    commands=(
+        'run:Start the Nandoroid Shell'
+        'reload:Reload the currently running shell'
+        'debug:Run the shell in debug mode'
+        'spotlight:Toggle the Spotlight search panel'
+        'dashboard:Toggle the Dashboard'
+        'settings:Open the Nandoroid Settings panel'
+        'launcher:Toggle the App Launcher'
+        'notifications:Toggle the Notification Center'
+        'quicksettings:Toggle the Quick Settings'
+        'systemmonitor:Toggle the System Monitor'
+        'overview:Toggle the Overview panel'
+        'session:Toggle the Session menu'
+        'region:Region tools'
+        'reboot:Reboot the system'
+        'lock:Lock the screen using Nandoroid Shell'
+        'poweroff:Shut down the system'
+        'update:Check and install updates'
+        'install:Install Nandoroid Shell'
+        'wallpaper:Open the wallpaper selection panel'
+        'colorscheme:Regenerate the colorscheme'
+        'version:Show version'
+        'help:Show help'
+    )
+
+    if (( CURRENT == 2 )); then
+        _describe -t commands 'nandoroid command' commands
+    elif (( CURRENT == 3 )); then
+        case $words[2] in
+            update)
+                local -a update_targets
+                update_targets=('shell:Update Nandoroid Shell' 'cli:Update nandoroid-cli' 'stable:Stable channel' 'canary:Canary channel')
+                _describe -t update_targets 'update target/channel' update_targets
+                ;;
+            install)
+                local -a install_cmds
+                install_cmds=('deps:Install shell dependencies only')
+                _describe -t install_cmds 'install command' install_cmds
+                ;;
+            wallpaper)
+                local -a wallpaper_cmds
+                wallpaper_cmds=('cycle:Toggle auto-cycle wallpaper')
+                _describe -t wallpaper_cmds 'wallpaper command' wallpaper_cmds
+                ;;
+            spotlight)
+                local -a spotlight_modes
+                spotlight_modes=('files:File search' 'apps:App launcher' 'commands:Command mode' 'clipboard:Clipboard history' 'emoji:Emoji picker')
+                _describe -t spotlight_modes 'spotlight mode' spotlight_modes
+                ;;
+            region)
+                local -a region_actions
+                region_actions=('screenshot:Region screenshot' 'search:Visual search' 'ocr:Text OCR' 'record:Record region' 'record-audio:Record with audio')
+                _describe -t region_actions 'region action' region_actions
+                ;;
+        esac
+    elif (( CURRENT == 4 )); then
+        case $words[2] in
+            wallpaper)
+                case $words[3] in
+                    cycle)
+                        local -a actions
+                        actions=('on:Turn on' 'off:Turn off')
+                        _describe -t actions 'cycle action' actions
+                        ;;
+                esac
+                ;;
+            update)
+                local -a channels
+                channels=('stable:Stable channel' 'canary:Canary channel')
+                _describe -t channels 'update channel' channels
+                ;;
+        esac
+    fi
+}
+
+_nandoroid "$@"
