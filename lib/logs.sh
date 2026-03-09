@@ -20,7 +20,7 @@ cmd_logs() {
     substep "Streaming logs from active instance (Ctrl+C to stop)..."
     echo "------------------------------------------------------------"
     
-    # We must specify the path because we launch with -p in cmd_run/debug
-    # Quickshell 0.5.0+ allows 'log -p <path>'
-    $bin log -p "$SHELL_DIR"
+    # Use -f (follow) to keep the log stream active
+    # Use -p to target the correct config path
+    $bin log -f -p "$SHELL_DIR"
 }
