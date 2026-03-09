@@ -49,6 +49,7 @@ show_help() {
     echo "  run           Start the Nandoroid Shell"
     echo "  reload        Reload the currently running shell"
     echo "  debug         Run the shell in debug mode"
+    echo "  exit          Stop the Nandoroid Shell"
     echo "  logs          Show Quickshell logs"
     echo ""
     echo -e "${C_ACCENT}${C_BOLD}Panel Control:${C_RST}"
@@ -120,12 +121,13 @@ if ! is_shell_installed; then
 fi
 
 case "$COMMAND" in
-    run|reload|debug)
+    run|reload|debug|exit)
         source_lib "lifecycle"
         case "$COMMAND" in
             run)    cmd_run "$@" ;;
             reload) cmd_reload "$@" ;;
             debug)  cmd_debug "$@" ;;
+            exit)   cmd_exit "$@" ;;
         esac
         ;;
     logs)

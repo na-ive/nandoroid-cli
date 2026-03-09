@@ -25,6 +25,7 @@ complete -c nandoroid -f
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'run' -d 'Start the Nandoroid Shell'
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'reload' -d 'Reload the currently running shell'
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'debug' -d 'Run the shell in debug mode'
+complete -c nandoroid -n '__nandoroid_needs_command' -a 'exit' -d 'Stop the Nandoroid Shell'
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'logs' -d 'Show Quickshell logs'
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'spotlight' -d 'Toggle the Spotlight search panel'
 complete -c nandoroid -n '__nandoroid_needs_command' -a 'dashboard' -d 'Toggle the Dashboard'
