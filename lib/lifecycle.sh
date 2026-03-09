@@ -20,10 +20,8 @@ is_shell_running() {
 stop_existing_shell() {
     if is_shell_running; then
         substep "Killing all existing Quickshell/qs processes..."
-        # Kill by full command line pattern to be sure
         pkill -9 -f "quickshell" || true
         pkill -9 -f "\bqs\b" || true
-        # Wait for resources to be freed
         sleep 1
     fi
 }
@@ -38,12 +36,10 @@ cmd_run() {
     
     local bin=$(get_qs_bin)
     substep "Launching $bin in background..."
-    # Force no-detach if possible (depends on version) or just run & disown
-    $bin -p "$SHELL_DIR" > /dev/null 2>&1 &
-    disown
+    # We use -d here because run is intended to be backgrounded/daemonized
+    $bin -d -p "$SHELL_DIR" > /dev/null 2>&1
     
-    # Quick check if it's still there
-    sleep 0.5
+    sleep 1
     if is_shell_running; then
         success "Shell started successfully."
     else
@@ -71,11 +67,10 @@ cmd_debug() {
     stop_existing_shell
     
     local bin=$(get_qs_bin)
-    substep "Logs will appear below. Press Ctrl+C to stop."
+    substep "Logs will appear below using $bin. Press Ctrl+C to stop."
     echo "------------------------------------------------------------"
-    # Use exec to replace the current script process with quickshell
-    # This ensures logs stay attached to the terminal
-    exec $bin -d -p "$SHELL_DIR"
+    # IMPORTANT: Use -vv for verbose logs and NO -d so it stays in foreground
+    exec $bin -vv -p "$SHELL_DIR"
 }
 
 cmd_exit() {
