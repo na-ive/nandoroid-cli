@@ -2,6 +2,8 @@
 
 # Log management for Nandoroid Shell
 
+SHELL_DIR="$HOME/.config/quickshell/nandoroid"
+
 get_qs_bin() {
     if command -v qs &> /dev/null; then echo "qs"; else echo "quickshell"; fi
 }
@@ -18,8 +20,7 @@ cmd_logs() {
     substep "Streaming logs from active instance (Ctrl+C to stop)..."
     echo "------------------------------------------------------------"
     
-    # Quickshell has a built-in 'log' subcommand that tails the latest log
-    # We filter for 'nandoroid' if possible, or just show the latest.
-    # Most users only run one config, so 'qs log' is very reliable.
-    $bin log
+    # We must specify the path because we launch with -p in cmd_run/debug
+    # Quickshell 0.5.0+ allows 'log -p <path>'
+    $bin log -p "$SHELL_DIR"
 }
