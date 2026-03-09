@@ -44,41 +44,64 @@ STATE_DIR="$HOME/.config/nandoroid"
 STATE_FILE="$STATE_DIR/cli_state.json"
 CURRENT_DIR="$(dirname "$(realpath "$0")")"
 
+# Load existing state if available
+EXISTING_SOURCE=""
+if [[ -f "$STATE_FILE" ]]; then
+    EXISTING_SOURCE=$(grep -oP '"source_dir": "\K[^"]*' "$STATE_FILE" || echo "")
+fi
+
 # 1. Path Selection
-info "Installation path..."
-ask "Where to store CLI source? (default: ~/.local/share/nandoroid-cli)"
-echo ""
-read -rp "     > " TARGET_DIR < /dev/tty
-TARGET_DIR="${TARGET_DIR:-$HOME/.local/share/nandoroid-cli}"
-TARGET_DIR="${TARGET_DIR/#\~/$HOME}"
+if [[ -n "$EXISTING_SOURCE" && "$CURRENT_DIR" != "$(realpath "$EXISTING_SOURCE" 2>/dev/null)" ]]; then
+    info "Existing installation detected at $EXISTING_SOURCE"
+    TARGET_DIR="$EXISTING_SOURCE"
+else
+    info "Installation path..."
+    DEFAULT_PATH="$HOME/.local/share/nandoroid-cli"
+    [[ -n "$EXISTING_SOURCE" ]] && DEFAULT_PATH="$EXISTING_SOURCE"
+    
+    ask "Where to store CLI source? (default: $DEFAULT_PATH)"
+    echo ""
+    read -rp "     > " TARGET_DIR < /dev/tty
+    TARGET_DIR="${TARGET_DIR:-$DEFAULT_PATH}"
+    TARGET_DIR="${TARGET_DIR/#\~/$HOME}"
+fi
 substep "Target: ${C_ACCENT}$TARGET_DIR${C_RST}"
 
-# 2. Cloning/Moving Source
+# 2. Source Management (Clone/Pull/Copy)
 if [[ "$CURRENT_DIR" != "$(realpath "$TARGET_DIR" 2>/dev/null)" ]]; then
     if [[ -d "$TARGET_DIR" ]]; then
-        info "Source already exists at target."
-        ask "Update it now? (Y/n)"
-        read -r update_choice < /dev/tty
-        if [[ ${update_choice:-y} =~ ^[Yy] ]]; then
-            substep "Pulling updates..."
-            cd "$TARGET_DIR" && git pull origin main > /dev/null 2>&1
+        info "Source already exists at target. Checking for updates..."
+        cd "$TARGET_DIR"
+        if git fetch origin main > /dev/null 2>&1; then
+            LOCAL_HASH=$(git rev-parse HEAD)
+            REMOTE_HASH=$(git rev-parse @{u})
+            if [[ "$LOCAL_HASH" != "$REMOTE_HASH" ]]; then
+                ask "Update available. Pull changes now? (Y/n)"
+                read -r update_choice < /dev/tty
+                if [[ ${update_choice:-y} =~ ^[Yy] ]]; then
+                    substep "Pulling latest changes..."
+                    git pull origin main > /dev/null 2>&1
+                    # SELF-REEXECUTE: Run the new installer from target and exit
+                    info "Re-running installer from updated source..."
+                    exec bash "$TARGET_DIR/install.sh"
+                fi
+            else
+                substep "Source is already up to date."
+            fi
         fi
     else
         info "Setting up source at target..."
         if [[ -f "$CURRENT_DIR/bin/nandoroid" ]]; then
-            # If run from a local clone, we copy it
             substep "Copying current source to $TARGET_DIR..."
             mkdir -p "$TARGET_DIR"
             cp -r "$CURRENT_DIR/"* "$TARGET_DIR/"
         else
-            # If run via curl, we clone it
             substep "Cloning repository to $TARGET_DIR..."
             git clone --depth 1 https://github.com/na-ive/nandoroid-cli.git "$TARGET_DIR" > /dev/null 2>&1
         fi
     fi
     REPO_DIR="$TARGET_DIR"
 else
-    # We are already in the target directory
     REPO_DIR="$CURRENT_DIR"
 fi
 
@@ -89,23 +112,26 @@ for dep in python3 git curl; do
 done
 success "Dependencies verified."
 
-# 4. Installation
-info "Installing Nandoroid CLI..."
+# 4. Installation (Copying Files from REPO_DIR)
+info "Installing Nandoroid CLI to system..."
 mkdir -p "$BIN_DIR" "$STATE_DIR"
+
+# Ensure REPO_DIR is absolute
+REPO_DIR=$(realpath "$REPO_DIR")
 
 substep "Installing binary to $BIN_DIR..."
 cp "$REPO_DIR/bin/nandoroid" "$BIN_DIR/nandoroid"
 chmod +x "$BIN_DIR/nandoroid"
 
-# Patch LIB_DIR to point to the REPO_DIR/lib
 substep "Configuring library paths..."
+# Patch LIB_DIR to point to the actual source directory's lib
 sed -i "s|LIB_DIR=.*|LIB_DIR=\"$REPO_DIR/lib\"|" "$BIN_DIR/nandoroid"
 
 # Save CLI State
-substep "Saving installation state to $STATE_FILE..."
+substep "Saving installation state..."
 cat > "$STATE_FILE" << EOF
 {
-  "source_dir": "$(realpath "$REPO_DIR")",
+  "source_dir": "$REPO_DIR",
   "install_date": "$(date +%Y-%m-%d)"
 }
 EOF
