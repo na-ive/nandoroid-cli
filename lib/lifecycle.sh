@@ -14,15 +14,17 @@ get_qs_bin() {
 }
 
 is_shell_running() {
-    pgrep -x "quickshell" > /dev/null || pgrep -x "qs" > /dev/null
+    pgrep -f "quickshell" > /dev/null || pgrep -f "\bqs\b" > /dev/null
 }
 
 stop_existing_shell() {
     if is_shell_running; then
-        substep "Stopping existing Quickshell instance..."
-        pkill -x "quickshell" || true
-        pkill -x "qs" || true
-        sleep 0.5
+        substep "Killing all existing Quickshell/qs processes..."
+        # Kill by full command line pattern to be sure
+        pkill -9 -f "quickshell" || true
+        pkill -9 -f "\bqs\b" || true
+        # Wait for resources to be freed
+        sleep 1
     fi
 }
 
@@ -35,10 +37,18 @@ cmd_run() {
     stop_existing_shell
     
     local bin=$(get_qs_bin)
-    # Run in background
+    substep "Launching $bin in background..."
+    # Force no-detach if possible (depends on version) or just run & disown
     $bin -p "$SHELL_DIR" > /dev/null 2>&1 &
     disown
-    success "Shell started in background using $bin."
+    
+    # Quick check if it's still there
+    sleep 0.5
+    if is_shell_running; then
+        success "Shell started successfully."
+    else
+        error "Shell failed to start. Try 'nandoroid debug' to see why."
+    fi
 }
 
 cmd_reload() {
@@ -61,15 +71,18 @@ cmd_debug() {
     stop_existing_shell
     
     local bin=$(get_qs_bin)
-    substep "Logs will appear below using $bin. Press Ctrl+C to stop."
-    $bin -d -p "$SHELL_DIR"
+    substep "Logs will appear below. Press Ctrl+C to stop."
+    echo "------------------------------------------------------------"
+    # Use exec to replace the current script process with quickshell
+    # This ensures logs stay attached to the terminal
+    exec $bin -d -p "$SHELL_DIR"
 }
 
 cmd_exit() {
     info "Exiting Nandoroid Shell..."
     if is_shell_running; then
-        pkill -x "quickshell" || true
-        pkill -x "qs" || true
+        pkill -f "quickshell" || true
+        pkill -f "\bqs\b" || true
         success "Quickshell stopped."
     else
         info "Quickshell is not currently running."
