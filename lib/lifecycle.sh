@@ -69,8 +69,8 @@ cmd_debug() {
     local bin=$(get_qs_bin)
     substep "Logs will appear below using $bin. Press Ctrl+C to stop."
     echo "------------------------------------------------------------"
-    # IMPORTANT: Use -vv for verbose logs and NO -d so it stays in foreground
-    exec $bin -vv -p "$SHELL_DIR"
+    # Simple foreground execution for natural debug logs
+    exec $bin -p "$SHELL_DIR"
 }
 
 cmd_exit() {
